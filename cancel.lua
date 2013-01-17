@@ -22,9 +22,20 @@ else
 		error('Cancel(): ' .. jid .. ' has un-canceled jobs that depend on it')
 	end
 
+	-- Send a message out on the appropriate channels
+	local encoded = cjson.encode({
+		jid    = jid,
+		worker = worker,
+		event  = 'canceled',
+		queue  = queue
+	})
+	redis.call('publish', 'log', encoded)
+
 	-- Remove this job from whatever worker has it, if any
 	if worker then
 		redis.call('zrem', 'ql:w:' .. worker .. ':jobs', jid)
+		-- If necessary, send a message to the appropriate worker, too
+		redis.call('publish', worker, encoded)
 	end
 
 	-- Remove it from that queue
